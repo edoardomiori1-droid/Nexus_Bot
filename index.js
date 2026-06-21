@@ -1,31 +1,36 @@
-require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
+const http = require('http');
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+// Configurazione server HTTP per Render (Web Service)
+// Render richiede che il servizio leghi una porta entro 60 secondi
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is running');
 });
 
-// Evento di avvio
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server web attivo sulla porta ${PORT}`);
+});
+
+// Configurazione Client Discord
+const client = new Client({ 
+    intents: [
+        GatewayIntentBits.Guilds, 
+        GatewayIntentBits.GuildMessages, 
+        GatewayIntentBits.MessageContent
+    ] 
+});
+
 client.once('ready', () => {
     console.log(`Nexus è online: ${client.user.tag}`);
 });
 
-// Gestione messaggi
-client.on('messageCreate', async (msg) => {
-    if (msg.author.bot) return;
+// --- INSERISCI QUI SOTTO LA TUA LOGICA BOT (es. client.on('messageCreate', ...)) ---
 
-    // Comandi
-    if (msg.content === '!ciao') {
-        msg.reply('Ciao Edo! Nexus è attivo e pronto ai tuoi ordini.');
-    } 
-    else if (msg.content === '?come stai') {
-        msg.reply('Sto benissimo, grazie per averlo chiesto! E tu come stai?');
-    }
-});
 
-// Login del bot
+// -----------------------------------------------------------------------------------
+
+// Login finale
 client.login(process.env.DISCORD_TOKEN);
