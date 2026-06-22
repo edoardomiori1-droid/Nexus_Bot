@@ -1,12 +1,20 @@
 /**
- * index.js
- * Cuore del bot Discord.
- * Gestisce la connessione, gli eventi e il routing verso nexusEngine.
+ * index.js - V3.0 (Production Grade)
+ * Gestione eventi Discord + Server Keep-Alive
  */
-const { Client, GatewayIntentBits } = require('discord.js');
+require('dotenv').config(); // Carica variabili d'ambiente
+const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
 const { processaMessaggio } = require('./nexusEngine');
+const http = require('http');
 
-// Configurazione dei permessi necessari per leggere e scrivere messaggi
+// Server Keep-Alive per Render
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'OK', uptime: process.uptime() }));
+}).listen(PORT, () => console.log(`[SYSTEM] HTTP server in ascolto sulla porta ${PORT}`));
+
+// Configurazione Client Discord
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -15,51 +23,33 @@ const client = new Client({
     ]
 });
 
-// Evento: Bot pronto
-client.once('ready', () => {
-    console.log(`[DISCORD] Nexus è online come ${client.user.tag}`);
-    console.log(`[DISCORD] Pronto a ricevere comandi.`);
+// Eventi stabilità
+client.on('ready', () => {
+    console.log(`[DISCORD] Connesso come ${client.user.tag}`);
+    client.user.setActivity('Edoardo', { type: ActivityType.Watching });
 });
 
-// Evento: Messaggi
 client.on('messageCreate', async (message) => {
-    // Evita loop infiniti rispondendo ai bot
-    if (message.author.bot) return;
+    if (message.author.bot || !message.content) return;
 
-    // Log dell'attività per monitoraggio
-    console.log(`[DISCORD] Messaggio da ${message.author.username} in canale ${message.channel.name}: ${message.content}`);
+    // Log attività
+    console.log(`[MSG] ${message.author.username}: ${message.content.substring(0, 50)}...`);
 
     try {
-        // Indica che il bot sta scrivendo (migliora l'esperienza utente)
         await message.channel.sendTyping();
-
-        // Inoltra al motore cognitivo
         const risposta = await processaMessaggio(message.content, message.author.username);
-
-        // Invia risposta
         await message.reply(risposta);
-        console.log(`[DISCORD] Risposta inviata con successo.`);
-
     } catch (error) {
-        console.error(`[DISCORD] Errore critico durante l'elaborazione del messaggio:`, error);
-        
-        try {
-            await message.reply("Si è verificato un errore di sistema durante l'elaborazione.");
-        } catch (replyError) {
-            console.error("[DISCORD] Impossibile inviare messaggio di errore:", replyError);
-        }
+        console.error("[CRITICAL] Errore elaborazione:", error);
+        await message.reply("⚠️ Errore di sistema: Modulo IA non raggiungibile.");
     }
 });
 
-// Evento: Errori del client
-client.on('error', (error) => {
-    console.error('[DISCORD] Errore del client Discord:', error);
-});
+// Gestione crash e chiusure pulite
+process.on('SIGINT', () => { client.destroy(); process.exit(); });
+process.on('SIGTERM', () => { client.destroy(); process.exit(); });
 
-// Login
-if (!process.env.DISCORD_TOKEN) {
-    console.error("[ERRORE] DISCORD_TOKEN non configurato!");
+client.login(process.env.DISCORD_TOKEN).catch(err => {
+    console.error("[FATAL] Impossibile avviare il client:", err);
     process.exit(1);
-}
-
-client.login(process.env.DISCORD_TOKEN);
+});
