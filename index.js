@@ -1,20 +1,26 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const http = require('http');
-// Importiamo il motore
 const { processaMessaggio } = require('./nexusEngine'); 
 
-// 1. Server HTTP (Fondamentale per Render)
+// Profilo Utente (Modulo Dati)
+const profiloUtente = {
+    nome: "Edoardo",
+    sport: "Rugby",
+    calorie: 3200,
+    focusDieta: "Colazione liquida e grassi sani",
+    focusSport: "Placcaggio dominante",
+    azioneSportiva: "Stretching psoas eseguito?"
+};
+
+// Server HTTP per Render
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot is running');
+    res.end('Nexus Bot Online');
 });
-
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server web attivo sulla porta ${PORT}`);
-});
+server.listen(PORT, '0.0.0.0');
 
-// 2. Configurazione Client
+// Configurazione Client
 const client = new Client({ 
     intents: [
         GatewayIntentBits.Guilds, 
@@ -27,19 +33,18 @@ client.once('ready', () => {
     console.log(`Nexus è online: ${client.user.tag}`);
 });
 
-// 3. Gestione Messaggi
+// Gestione Messaggi
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    // Ping di controllo (debug)
     if (message.content === '!ping') {
-        message.reply("Nexus è connesso e operativo.");
+        message.reply("Nexus è operativo.");
         return;
     }
 
-    // Passaggio al motore
     try {
-        const risposta = await processaMessaggio(message.content, message.author.username);
+        // Passiamo il testo, l'utente e il PROFILO al motore
+        const risposta = await processaMessaggio(message.content, message.author.username, profiloUtente);
         if (risposta) {
             message.reply(risposta);
         }
@@ -48,5 +53,4 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// 4. Login
 client.login(process.env.DISCORD_TOKEN);
