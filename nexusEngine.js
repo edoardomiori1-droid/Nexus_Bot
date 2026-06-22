@@ -1,25 +1,35 @@
-async function processaMessaggio(testo, utente) {
+const OpenAI = require('openai');
+
+// Configurazione OpenAI
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+
+async function processaMessaggio(testo, utente, profilo) {
     const input = testo.toLowerCase();
 
-    // 1. Comando: Panca (Focus Sport)
-    if (input.includes('panca')) {
-        return "Stai spingendo 77.5kg. Il tuo obiettivo è la solidità. Mantieni il focus.";
+    // 1. Priorità: Logica Personale (rimane rapida e gratuita)
+    if (input.includes('dieta') || input.includes('fame')) {
+        return `Protocollo alimentare attivo per ${profilo.nome}. Target: ${profilo.calorie} kcal. Focus: ${profilo.focusDieta}.`;
+    }
+    if (input.includes('rugby') || input.includes('allenamento')) {
+        return `Focus ${profilo.sport}: ${profilo.focusSport}. ${profilo.azioneSportiva}.`;
     }
 
-    // 2. Comando: Dieta (Focus Nutrizione)
-    if (input.includes('dieta') || input.includes('mangiare')) {
-        return "Obiettivo: 3200 kcal. Ricorda: colazione liquida (Whey+Avena) e surplus di grassi sani.";
+    // 2. Fallback: Intelligenza Artificiale Universale
+    try {
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini", // Modello rapido ed economico
+            messages: [
+                { role: "system", content: "Sei Nexus, un assistente utile, sintetico e preciso." },
+                { role: "user", content: testo }
+            ],
+        });
+        return completion.choices[0].message.content;
+    } catch (error) {
+        console.error("Errore API OpenAI:", error);
+        return "Scusa, ho un problema con il mio modulo cognitivo in questo momento.";
     }
-
-    // 3. Comando: Saluto
-    if (input.includes('ciao') || input.includes('ehi')) {
-        return `Ciao ${utente}, Nexus è attivo. Cosa dobbiamo ottimizzare oggi?`;
-    }
-
-    // 4. Fallback (Se non capisce, risponde così)
-    // Se vuoi che risponda SEMPRE, togli il commento sotto. 
-    // Se vuoi che stia in silenzio quando non capisce, lascia come ora (restituisci null).
-    return null; 
 }
 
 module.exports = { processaMessaggio };
