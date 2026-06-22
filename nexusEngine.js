@@ -1,34 +1,44 @@
-/**
- * nexusEngine.js
- * Modello: Gemini 1.5 Pro
- */
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Validazione chiave
-if (!process.env.OPENAI_API_KEY) {
-    console.error("ERRORE: API KEY non trovata!");
+// Legge la variabile corretta configurata sulla dashboard di Render
+const apiKey = process.env.GEMINI_API_KEY;
+
+if (!apiKey) {
+    console.error("[CRITICAL] Rilevamento fallito: GEMINI_API_KEY è assente su Render!");
 }
 
-// Inizializzazione sicura
-const genAI = new GoogleGenerativeAI(process.env.OPENAI_API_KEY);
+const genAI = new GoogleGenerativeAI(apiKey || "");
 
-// Usiamo 1.5-pro, il modello più stabile e universale
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+// Matrice di ridondanza per evitare l'errore 404
+const MATRICE_MODELLI = [
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+    "gemini-2.0-flash",
+    "gemini-pro"
+];
 
 async function processaMessaggio(testo, utente) {
-    try {
-        console.log(`[ENGINE] Invio a Gemini 1.5 Pro...`);
-        
-        const result = await model.generateContent(testo);
-        const response = await result.response;
-        const testoRisposta = response.text();
+    if (!testo || testo.trim() === "") return "Payload vuoto.";
+    if (!apiKey) return "⚠️ Configurazione incompleta: manca la chiave GEMINI_API_KEY sul server.";
 
-        return testoRisposta || "Nessuna risposta dal modello.";
-
-    } catch (error) {
-        console.error("[ENGINE] Errore API:", error.message);
-        return "Errore 404: Modello non disponibile. Verifica che la tua chiave API sia abilitata per 'gemini-1.5-pro'.";
+    for (const modello of MATRICE_MODELLI) {
+        try {
+            console.log(`[ENGINE] Tentativo di chiamata con risorsa: ${modello}`);
+            const model = genAI.getGenerativeModel({ model: modello });
+            
+            const promptStrutturato = `Sei Nexus, l'Agente Totale di Edoardo. Rispondi a ${utente}: ${testo}`;
+            const result = await model.generateContent(promptStrutturato);
+            const response = await result.response;
+            
+            return response.text();
+        } catch (err) {
+            console.warn(`[ENGINE] Endpoint ${modello} non raggiungibile: ${err.message}`);
+            if (err.message.includes("API key") || err.message.includes("401")) {
+                return "⚠️ Errore di autenticazione: La chiave inserita su Render non è valida.";
+            }
+        }
     }
+    return "❌ Errore di Configurazione: Nessun modello ha risposto alle richieste HTTP (404).";
 }
 
 module.exports = { processaMessaggio };
