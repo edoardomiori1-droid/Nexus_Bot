@@ -1,14 +1,13 @@
-const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Configurazione OpenAI
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// Inizializza con la chiave che hai caricato su Render
+const genAI = new GoogleGenerativeAI(process.env.OPENAI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 async function processaMessaggio(testo, utente, profilo) {
     const input = testo.toLowerCase();
 
-    // 1. Priorità: Logica Personale (rimane rapida e gratuita)
+    // Logica Personale
     if (input.includes('dieta') || input.includes('fame')) {
         return `Protocollo alimentare attivo per ${profilo.nome}. Target: ${profilo.calorie} kcal. Focus: ${profilo.focusDieta}.`;
     }
@@ -16,19 +15,14 @@ async function processaMessaggio(testo, utente, profilo) {
         return `Focus ${profilo.sport}: ${profilo.focusSport}. ${profilo.azioneSportiva}.`;
     }
 
-    // 2. Fallback: Intelligenza Artificiale Universale
+    // Logica Universale (Gemini)
     try {
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini", // Modello rapido ed economico
-            messages: [
-                { role: "system", content: "Sei Nexus, un assistente utile, sintetico e preciso." },
-                { role: "user", content: testo }
-            ],
-        });
-        return completion.choices[0].message.content;
+        const result = await model.generateContent(testo);
+        const response = await result.response;
+        return response.text();
     } catch (error) {
-        console.error("Errore API OpenAI:", error);
-        return "Scusa, ho un problema con il mio modulo cognitivo in questo momento.";
+        console.error("Errore Gemini:", error);
+        return "Ho un problema tecnico col modulo IA.";
     }
 }
 
